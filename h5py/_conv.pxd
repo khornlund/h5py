@@ -9,6 +9,5 @@
 
 from defs cimport *
 
-
-
-
+cdef int _register_bool_converters() except -1
+cdef int _unregister_bool_converters() except -1

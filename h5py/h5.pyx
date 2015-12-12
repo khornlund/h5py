@@ -11,6 +11,7 @@ include "config.pxi"
 
 from defs cimport *
 from ._objects import phil, with_phil
+from ._conv cimport _register_bool_converters, _unregister_bool_converters
 
 ITER_INC    = H5_ITER_INC     # Increasing order
 ITER_DEC    = H5_ITER_DEC     # Decreasing order
@@ -110,6 +111,8 @@ cdef class H5PYConfig:
                     raise TypeError("bool_names must be a length-2 sequence of of names (false, true)")
                 self._f_name = f
                 self._t_name = t
+                _unregister_bool_converters()
+                _register_bool_converters()
 
     property read_byte_strings:
         """ Returns a context manager which forces all strings to be returned

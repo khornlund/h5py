@@ -5,6 +5,10 @@
 from __future__ import absolute_import
 
 import numpy as np
+try:
+    import tables
+except ImportError:
+    tables = None
 import h5py
 
 from ..common import ut, TestCase
@@ -95,3 +99,59 @@ class TestOffsets(TestCase):
 
         with h5py.File(fname, 'r') as fd:
             self.assertArrayEqual(fd['data'], data)
+
+
+@ut.skipUnless(tables is not None, 'tables is required')
+class TestB8Bool(TestCase):
+
+    """
+    Test loading of H5T_NATIVE_B8 as numpy.bool
+    """
+
+    def test_b8_bool(self):
+        fname = self.mktemp()
+        arr1 = np.array([False, True], dtype=np.bool)
+
+        with tables.open_file(fname, 'a') as f:
+            f.create_array('/', 'test', obj=arr1)
+
+        with h5py.File(fname, 'r') as f:
+            arr2 = f['test'][:]
+
+        self.assertArrayEqual(arr1, arr2)
+
+    def test_b8_bool_compound(self):
+        fname = self.mktemp()
+        arr1 = np.array([(False,), (True,)], dtype=np.dtype([('x', '?')]))
+
+        with tables.open_file(fname, 'a') as f:
+            f.create_table('/', 'test', obj=arr1)
+
+        with h5py.File(fname, 'r') as f:
+            arr2 = f['test'][:]
+
+        self.assertArrayEqual(arr1, arr2)
+
+    def test_b8_bool_compound_nested(self):
+        fname = self.mktemp()
+        arr1 = np.array([(True, (True, False)), (True, (False, True))], dtype=np.dtype([('x', '?'), ('y', [('a', '?',), ('b', '?')])]))
+
+        with tables.open_file(fname, 'a') as f:
+            f.create_table('/', 'test', obj=arr1)
+
+        with h5py.File(fname, 'r') as f:
+            arr2 = f['test'][:]
+
+        self.assertArrayEqual(arr1, arr2)
+
+    def test_b8_bool_array(self):
+        fname = self.mktemp()
+        arr1 = np.array([((True, True, False),), ((True, False, True),)], dtype=np.dtype([('x', ('?', (3,)))]))
+
+        with tables.open_file(fname, 'a') as f:
+            f.create_table('/', 'test', obj=arr1)
+
+        with h5py.File(fname, 'r') as f:
+            arr2 = f['test'][:]
+
+        self.assertArrayEqual(arr1, arr2)

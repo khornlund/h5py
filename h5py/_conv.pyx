@@ -13,10 +13,13 @@
     Low-level type-conversion routines.
 """
 
+from h5 import get_config
 from h5r cimport Reference, RegionReference, hobj_ref_t, hdset_reg_ref_t
 from h5t cimport H5PY_OBJ, typewrap, py_create, TypeID
 cimport numpy as np
 from libc.stdlib cimport realloc
+
+cfg = get_config()
 
 # Initialization
 np.import_array()
@@ -765,7 +768,20 @@ cdef int conv_ndarray2vlen(void* ipt, void* opt,
     in_vlen[0].ptr = data
     
     return 0
-            
+
+# =============================================================================
+# B8 to enum bool routines
+
+cdef herr_t b82boolenum(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
+                        size_t nl, size_t buf_stride, size_t bkg_stride, void *buf_i,
+                        void *bkg_i, hid_t dxpl) except -1:
+    return 0
+
+cdef herr_t boolenum2b8(hid_t src_id, hid_t dst_id, H5T_cdata_t *cdata,
+                        size_t nl, size_t buf_stride, size_t bkg_stride, void *buf_i,
+                        void *bkg_i, hid_t dxpl) except -1:
+    return 0
+
 # =============================================================================
 
 cpdef int register_converters() except -1:
@@ -802,11 +818,31 @@ cpdef int register_converters() except -1:
     H5Tregister(H5T_PERS_SOFT, "vlen2ndarray", vlentype, pyobj, vlen2ndarray)
     H5Tregister(H5T_PERS_SOFT, "ndarray2vlen", pyobj, vlentype, ndarray2vlen)
 
+    _register_bool_converters()
+
     H5Tclose(vlstring)
     H5Tclose(vlentype)
     H5Tclose(enum)
 
     return 0
+
+
+cdef int _register_bool_converters() except -1:
+    cdef hid_t boolenum = -1
+    cdef int8_t f_value = 0
+    cdef int8_t t_value = 1
+
+    boolenum = H5Tenum_create(H5T_NATIVE_INT8)
+    H5Tenum_insert(boolenum, cfg._f_name, &f_value)
+    H5Tenum_insert(boolenum, cfg._t_name, &t_value)
+
+    H5Tregister(H5T_PERS_HARD, "boolenum2b8", boolenum, H5T_NATIVE_B8, boolenum2b8)
+    H5Tregister(H5T_PERS_HARD, "b82boolenum", H5T_NATIVE_B8, boolenum, b82boolenum)
+
+    H5Tclose(boolenum)
+
+    return 0
+
 
 cpdef int unregister_converters() except -1:
 
@@ -827,5 +863,15 @@ cpdef int unregister_converters() except -1:
 
     H5Tunregister(H5T_PERS_SOFT, "vlen2ndarray", -1, -1, vlen2ndarray)
     H5Tunregister(H5T_PERS_SOFT, "ndarray2vlen", -1, -1, ndarray2vlen)
+
+    _unregister_bool_converters()
+
+    return 0
+
+
+cdef int _unregister_bool_converters() except -1:
+
+    H5Tunregister(H5T_PERS_HARD, "boolenum2b8", -1, -1, boolenum2b8)
+    H5Tunregister(H5T_PERS_HARD, "b82boolenum", -1, -1, b82boolenum)
 
     return 0
