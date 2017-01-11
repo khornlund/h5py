@@ -50,6 +50,10 @@ cdef class H5PYConfig:
         bool_names (tuple, r/w)
             Settable 2-tuple controlling the HDF5 enum names used for boolean
             values.  Defaults to ('FALSE', 'TRUE') for values 0 and 1.
+
+        b8_to_bool (bool, r/w)
+            Settable bool enabling H5T_NATIVE_B8 -> bool conversion. This is
+            intended for compatibility with the PyTables bool encoding.
     """
 
     def __init__(self):
@@ -58,6 +62,7 @@ cdef class H5PYConfig:
         self._f_name = b'FALSE'
         self._t_name = b'TRUE'
         self._bytestrings = ByteStringContext()
+        self._b8_to_bool = False
 
     property complex_names:
         """ Settable 2-tuple controlling how complex numbers are saved.
@@ -139,6 +144,23 @@ cdef class H5PYConfig:
         """Tuple indicating the minimum HDF5 version required for virtual dataset (VDS) features"""
         def __get__(self):
             return VDS_MIN_HDF5_VERSION
+
+    property b8_to_bool:
+        """ Settable bool enabling H5T_NATIVE_B8 -> bool conversion."""
+        def __get__(self):
+            with phil:
+                return self._b8_to_bool
+
+        def __set__(self, val):
+            with phil:
+                val = bool(val)
+                if val == self._b8_to_bool:
+                    return
+                self._b8_to_bool = val
+                if val:
+                    _register_bool_converters()
+                else:
+                    _unregister_bool_converters()
 
 cdef H5PYConfig cfg = H5PYConfig()
 

@@ -109,49 +109,42 @@ class TestB8Bool(TestCase):
     """
 
     def test_b8_bool(self):
-        fname = self.mktemp()
         arr1 = np.array([False, True], dtype=np.bool)
-
-        with tables.open_file(fname, 'a') as f:
-            f.create_array('/', 'test', obj=arr1)
-
-        with h5py.File(fname, 'r') as f:
-            arr2 = f['test'][:]
-
-        self.assertArrayEqual(arr1, arr2)
+        self._test_b8(arr1)
 
     def test_b8_bool_compound(self):
-        fname = self.mktemp()
         arr1 = np.array([(False,), (True,)], dtype=np.dtype([('x', '?')]))
-
-        with tables.open_file(fname, 'a') as f:
-            f.create_table('/', 'test', obj=arr1)
-
-        with h5py.File(fname, 'r') as f:
-            arr2 = f['test'][:]
-
-        self.assertArrayEqual(arr1, arr2)
+        self._test_b8(arr1)
 
     def test_b8_bool_compound_nested(self):
-        fname = self.mktemp()
         arr1 = np.array([(True, (True, False)), (True, (False, True))], dtype=np.dtype([('x', '?'), ('y', [('a', '?',), ('b', '?')])]))
-
-        with tables.open_file(fname, 'a') as f:
-            f.create_table('/', 'test', obj=arr1)
-
-        with h5py.File(fname, 'r') as f:
-            arr2 = f['test'][:]
-
-        self.assertArrayEqual(arr1, arr2)
+        self._test_b8(arr1)
 
     def test_b8_bool_array(self):
-        fname = self.mktemp()
-        arr1 = np.array([((True, True, False),), ((True, False, True),)], dtype=np.dtype([('x', ('?', (3,)))]))
+        arr1 = np.array([(True, True, False), (True, False, True)], dtype=np.dtype(('?', (3,))))
+        self._test_b8(arr1)
 
+    def test_b8_bool_compound_array(self):
+        arr1 = np.array([((True, True, False),), ((True, False, True),)], dtype=np.dtype([('x', ('?', (3,)))]))
+        self._test_b8(arr1)
+
+    def _test_b8(self, arr1):
+        fname = self.mktemp()
         with tables.open_file(fname, 'a') as f:
-            f.create_table('/', 'test', obj=arr1)
+            if arr1.dtype.names:
+                f.create_table('/', 'test', obj=arr1)
+            else:
+                f.create_array('/', 'test', obj=arr1)
 
         with h5py.File(fname, 'r') as f:
-            arr2 = f['test'][:]
+            assert h5py.get_config().b8_to_bool == False
+            with self.assertRaises(TypeError):
+                f['test'][:]
 
-        self.assertArrayEqual(arr1, arr2)
+            h5py.get_config().b8_to_bool = True
+            arr2 = f['test'][:]
+            self.assertArrayEqual(arr1, arr2)
+
+            h5py.get_config().b8_to_bool = False
+            with self.assertRaises(TypeError):
+                f['test'][:]

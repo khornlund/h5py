@@ -818,7 +818,8 @@ cpdef int register_converters() except -1:
     H5Tregister(H5T_PERS_SOFT, "vlen2ndarray", vlentype, pyobj, vlen2ndarray)
     H5Tregister(H5T_PERS_SOFT, "ndarray2vlen", pyobj, vlentype, ndarray2vlen)
 
-    _register_bool_converters()
+    if cfg._b8_to_bool:
+        _register_bool_converters()
 
     H5Tclose(vlstring)
     H5Tclose(vlentype)
