@@ -11,6 +11,7 @@ include "config.pxi"
 
 from defs cimport *
 from ._objects import phil, with_phil
+from ._conv cimport _register_bool_converters, _unregister_bool_converters
 
 ITER_INC    = H5_ITER_INC     # Increasing order
 ITER_DEC    = H5_ITER_DEC     # Decreasing order
@@ -51,6 +52,10 @@ cdef class H5PYConfig:
         bool_names (tuple, r/w)
             Settable 2-tuple controlling the HDF5 enum names used for boolean
             values.  Defaults to ('FALSE', 'TRUE') for values 0 and 1.
+
+        b8_to_bool (bool, r/w)
+            Settable bool enabling H5T_NATIVE_B8 -> bool conversion. This is
+            intended for compatibility with the PyTables bool encoding.
     """
 
     def __init__(self):
@@ -60,6 +65,7 @@ cdef class H5PYConfig:
         self._t_name = b'TRUE'
         self._bytestrings = ByteStringContext()
         self._track_order = False
+        self._b8_to_bool = False
 
     property complex_names:
         """ Settable 2-tuple controlling how complex numbers are saved.
@@ -113,6 +119,8 @@ cdef class H5PYConfig:
                     raise TypeError("bool_names must be a length-2 sequence of of names (false, true)")
                 self._f_name = f
                 self._t_name = t
+                _unregister_bool_converters()
+                _register_bool_converters()
 
     property read_byte_strings:
         """ Returns a context manager which forces all strings to be returned
@@ -147,6 +155,23 @@ cdef class H5PYConfig:
             return self._track_order
         def __set__(self, val):
             self._track_order = val
+	    
+    property b8_to_bool:
+        """ Settable bool enabling H5T_NATIVE_B8 -> bool conversion."""
+        def __get__(self):
+            with phil:
+                return self._b8_to_bool
+
+        def __set__(self, val):
+            with phil:
+                val = bool(val)
+                if val == self._b8_to_bool:
+                    return
+                self._b8_to_bool = val
+                if val:
+                    _register_bool_converters()
+                else:
+                    _unregister_bool_converters()
 
 cdef H5PYConfig cfg = H5PYConfig()
 

@@ -6,6 +6,10 @@ from __future__ import absolute_import
 
 from itertools import count
 import numpy as np
+try:
+    import tables
+except ImportError:
+    tables = None
 import h5py
 
 from ..common import ut, TestCase
@@ -194,7 +198,7 @@ class TestOffsets(TestCase):
 
         with h5py.File(fname, 'r') as f:
             self.assertArrayEqual(f['data'], data)
-
+			
     def test_out_of_order_offsets(self):
         dt = np.dtype({
             'names' : ['f1', 'f2', 'f3'],
@@ -236,3 +240,52 @@ class TestOffsets(TestCase):
             for n, d in dtype_dset_map.items():
                 ldata = f[n][:]
                 self.assertEqual(ldata.dtype, d)
+
+@ut.skipUnless(tables is not None, 'tables is required')
+class TestB8Bool(TestCase):
+
+    """
+    Test loading of H5T_NATIVE_B8 as numpy.bool
+    """
+
+    def test_b8_bool(self):
+        arr1 = np.array([False, True], dtype=np.bool)
+        self._test_b8(arr1)
+
+    def test_b8_bool_compound(self):
+        arr1 = np.array([(False,), (True,)], dtype=np.dtype([('x', '?')]))
+        self._test_b8(arr1)
+
+    def test_b8_bool_compound_nested(self):
+        arr1 = np.array([(True, (True, False)), (True, (False, True))], dtype=np.dtype([('x', '?'), ('y', [('a', '?',), ('b', '?')])]))
+        self._test_b8(arr1)
+
+    def test_b8_bool_array(self):
+        arr1 = np.array([(True, True, False), (True, False, True)], dtype=np.dtype(('?', (3,))))
+        self._test_b8(arr1)
+
+    def test_b8_bool_compound_array(self):
+        arr1 = np.array([((True, True, False),), ((True, False, True),)], dtype=np.dtype([('x', ('?', (3,)))]))
+        self._test_b8(arr1)
+
+    def _test_b8(self, arr1):
+        fname = self.mktemp()
+        with tables.open_file(fname, 'a') as f:
+            if arr1.dtype.names:
+                f.create_table('/', 'test', obj=arr1)
+            else:
+                f.create_array('/', 'test', obj=arr1)
+
+        with h5py.File(fname, 'r') as f:
+            assert h5py.get_config().b8_to_bool == False
+            with self.assertRaises(TypeError):
+                f['test'][:]
+
+            h5py.get_config().b8_to_bool = True
+            arr2 = f['test'][:]
+            self.assertArrayEqual(arr1, arr2)
+
+            h5py.get_config().b8_to_bool = False
+            with self.assertRaises(TypeError):
+                f['test'][:]
+
